@@ -1,0 +1,81 @@
+library(rvest)
+library(tidyverse)
+
+url <- "https://laneta.cl/category/categorias-candidatos/feministas/page/"
+
+n <- seq(1:13)
+
+
+
+for (i in 1:13) {
+  
+  links <- read_html(paste0(url,i,"/")) %>% html_nodes('h2.entry-title') %>%
+    html_nodes("a") %>% html_attr("href")
+  link <- data.frame(links)
+  
+  links_candidatas <- rbind(links_candidatas, link)
+  
+  
+}
+
+
+# debemos añadir la primera pagina
+
+url_principal <- "https://laneta.cl/category/categorias-candidatos/feministas/"
+
+links_first_page <- read_html(url_principal) %>% html_nodes('h2.entry-title') %>%
+  html_nodes("a") %>% html_attr("href")
+
+link <- data.frame(links)
+
+links_candidatas <- rbind(links_candidatas, link)
+
+links_candidatas$links <- as.character(links_candidatas$links)
+
+### scrap interior links 
+
+datalist <- list()
+for (i in 1:5 ) {
+  print(i)
+  
+  title <- read_html(as.character(links_candidatas$links[i])) %>%
+    html_node("h1") %>%
+    html_text(".entry-title")
+  
+  lista<- read_html(as.character(links_candidatas$links[i])) %>%
+    html_node(".lista") %>%
+    html_text("p a")
+  
+  partido <- read_html(as.character(links_candidatas$links[i])) %>%
+    html_node(".partido") %>% html_text("p a")
+  
+  distrito <- read_html(as.character(links_candidatas$links[i])) %>%
+    html_node(".distrito") %>% html_text("p a")
+  
+  propuesta <- read_html(as.character(links_candidatas$links[i])) %>%
+    html_node(".col") %>% html_text("p")
+  
+  df <- data.frame(cadidata=title, lista=lista, partido=partido, distrito=distrito, propuesta=propuesta)
+  
+  datalist[[i]] <- df
+    
+  
+}
+
+candidatas = do.call(rbind, datalist)
+
+candidatas$propuesta <- str_squish(candidatas$propuesta)
+
+candidatas$propuesta<- sub("Twitter.*$", '', candidatas$propuesta)
+candidatas$propuesta<- sub(".*Propuestas", '', candidatas$propuesta)
+candidatas$lista <- sub(".*:", "", candidatas$lista)
+candidatas$partido <- sub(".*:", "", candidatas$partido)
+candidatas$distrito <- sub(".*:", "", candidatas$distrito)
+
+candidatas$propuesta <- gsub("-", "", candidatas$propuesta)
+candidatas$propuesta <- gsub(":", "", candidatas$propuesta)
+candidatas$propuesta <- gsub("*", "", candidatas$propuesta)
+
+library(writexl)
+
+writexl::write_xlsx(candidatas, "candidatas_feministas_final.xlsx")
